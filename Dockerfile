@@ -20,7 +20,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 
 # Установка зависимостей без виртуального окружения
-RUN poetry config virtualenvs.create false \
+RUN poetry config virtualenvs.create false --local \
     && poetry install --no-interaction --no-ansi --no-root
 
 # Копирование всего кода приложения
