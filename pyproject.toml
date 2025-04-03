@@ -1,0 +1,53 @@
+[project]
+name = "telegram-uptime-bot"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "aiogram (>=3.19.0,<4.0.0)",
+    "python-dotenv (>=1.1.0,<2.0.0)",
+    "aiohttp (>=3.8.5,<4.0.0)",
+    "uptime-kuma-api (>=0.1.0,<1.0.0)"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest (>=8.3.0,<9.0.0)",
+    "pytest-asyncio (>=0.26.0,<1.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
+
+[tool.poetry.scripts]
+bot = "bot:main"
+test = "pytest:main"
+test-client = "pytest:main tests/test_uptime_kuma_client.py -v"
+test-bot = "pytest:main tests/test_bot.py -v"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+markers = [
+    "asyncio: mark a test as an asyncio coroutine",
+    "slow: mark a test as slow",
+    "uptime_kuma: tests that interact with Uptime Kuma API",
+    "telegram: tests that interact with Telegram API"
+]
+asyncio_default_fixture_loop_scope = "function"
+
