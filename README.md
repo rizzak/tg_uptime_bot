@@ -11,6 +11,8 @@
 
 ## Установка
 
+### Обычная установка
+
 1. Установите зависимости с помощью Poetry:
    ```bash
    poetry install
@@ -25,7 +27,18 @@
    ALLOWED_CHAT_IDS=список_разрешенных_id_чатов_через_запятую
    ```
 
+### Установка с Docker
+
+1. Создайте файл `.env` с теми же переменными окружения, что указаны выше.
+
+2. Соберите Docker образ:
+   ```bash
+   docker compose build
+   ```
+
 ## Запуск
+
+### Обычный запуск
 
 Запустите бота с помощью следующей команды:
 ```bash
@@ -35,6 +48,22 @@ poetry run python bot.py
 Или используя скрипт:
 ```bash
 poetry run bot
+```
+
+### Запуск с Docker
+
+```bash
+# Запуск
+docker compose up -d
+
+# Остановка
+docker compose down
+
+# Просмотр логов
+docker compose logs -f
+
+# Проверка статуса
+docker compose ps
 ```
 
 ## Команды бота
@@ -75,6 +104,8 @@ poetry run test-bot
 - `tests/` - Директория с тестами
   - `test_uptime_kuma_client.py` - Тесты для клиента Uptime Kuma
   - `test_bot.py` - Тесты для Telegram бота
+- `Dockerfile` - Файл для сборки Docker образа
+- `docker-compose.yaml` - Файл конфигурации Docker Compose
 
 ## Используемые технологии
 
@@ -85,6 +116,30 @@ poetry run test-bot
 - uptime-kuma-api
 - Poetry (управление зависимостями)
 - pytest (тестирование)
+- Docker (контейнеризация)
+
+## Деплой на сервер
+
+Для деплоя бота на сервер:
+
+1. Клонируйте репозиторий на сервер:
+   ```bash
+   git clone https://github.com/ваш-пользователь/telegram-uptime-bot.git
+   cd telegram-uptime-bot
+   ```
+
+2. Создайте файл `.env` с необходимыми переменными окружения.
+
+3. Запустите бота с помощью Docker Compose:
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+
+4. Настройте автозапуск контейнера при перезагрузке сервера:
+   ```bash
+   # Уже настроено в docker-compose.yaml с опцией restart: unless-stopped
+   ```
 
 ## Лицензия
 
