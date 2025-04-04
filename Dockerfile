@@ -1,30 +1,28 @@
-FROM python:3.12-slim as base
-
-# Установка Poetry
-ENV POETRY_VERSION=1.7.1
-ENV POETRY_HOME=/opt/poetry
-ENV POETRY_VENV=/opt/poetry-venv
-ENV POETRY_CACHE_DIR=/opt/.cache
-
-# Установка poetry в отдельное окружение
-RUN python3 -m venv $POETRY_VENV \
-    && $POETRY_VENV/bin/pip install -U pip setuptools \
-    && $POETRY_VENV/bin/pip install poetry==${POETRY_VERSION}
-
-# Добавление poetry в PATH
-ENV PATH="${PATH}:${POETRY_VENV}/bin"
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Копирование только файлов зависимостей для кэширования слоев
+# Установка необходимых зависимостей
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копирование файлов зависимостей
 COPY pyproject.toml ./
 
-# Установка зависимостей без виртуального окружения
-RUN poetry config virtualenvs.create false --local \
-    && poetry install --no-interaction --no-ansi --no-root
+# Установка зависимостей напрямую (без использования Poetry)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    "aiogram>=3.19.0,<4.0.0" \
+    "python-dotenv>=1.1.0,<2.0.0" \
+    "aiohttp>=3.8.5,<4.0.0" \
+    "uptime-kuma-api>=0.1.0,<1.0.0"
 
 # Копирование всего кода приложения
 COPY . .
+
+# Создание директории для логов
+RUN mkdir -p logs
 
 # Команда запуска приложения
 CMD ["python", "bot.py"] 

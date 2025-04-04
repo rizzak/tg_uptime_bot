@@ -5,48 +5,20 @@ import asyncio
 from dotenv import load_dotenv
 import os
 import logging
-from logging.handlers import RotatingFileHandler
-import sys
 from uptime_kuma_client import UptimeKumaClient
 
-# Создание директории для логов, если её нет
-os.makedirs('logs', exist_ok=True)
-
 # Настройка логирования
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Обработчик для вывода в консоль
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-console_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(console_format)
-
-# Обработчик для записи в файл с ротацией
-file_handler = RotatingFileHandler(
-    'logs/bot.log',
-    maxBytes=10485760,  # 10MB
-    backupCount=5,
-    encoding='utf-8'
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-file_handler.setLevel(logging.INFO)
-file_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(file_format)
-
-# Добавление обработчиков
-logger.addHandler(console_handler)
-logger.addHandler(file_handler)
+logger = logging.getLogger(__name__)
 
 load_dotenv()  # Загрузка переменных окружения из .env
 
 # Получение настроек из переменных окружения
 API_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 ALLOWED_CHAT_IDS = os.getenv('ALLOWED_CHAT_IDS', '').split(',')
-
-# Проверка наличия токена
-if not API_TOKEN:
-    logger.error("TELEGRAM_BOT_TOKEN не найден в переменных окружения")
-    sys.exit(1)
 
 # Инициализация бота и диспетчера
 bot = Bot(token=API_TOKEN)
@@ -176,13 +148,7 @@ async def list_incidents(message: Message):
         await message.answer(f"❌ Произошла ошибка: {str(e)}")
 
 async def main():
-    logger.info("Запуск Telegram Uptime Bot")
-    try:
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Ошибка при запуске бота: {e}")
-    finally:
-        logger.info("Бот остановлен")
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
     asyncio.run(main()) 
