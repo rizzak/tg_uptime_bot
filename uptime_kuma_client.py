@@ -1,7 +1,12 @@
 import os
+import logging
 from typing import Optional, List, Dict, Any
 from uptime_kuma_api import UptimeKumaApi, MonitorType
 from dotenv import load_dotenv
+import asyncio
+
+# Настройка логгера
+logger = logging.getLogger(__name__)
 
 class UptimeKumaClient:
     def __init__(self):
@@ -9,26 +14,32 @@ class UptimeKumaClient:
         self.url = os.getenv("UPTIME_KUMA_URL")
         self.username = os.getenv("UPTIME_KUMA_USERNAME")
         self.password = os.getenv("UPTIME_KUMA_PASSWORD")
-        self.api_key = os.getenv("UPTIME_KUMA_API_KEY")
         self.api: Optional[UptimeKumaApi] = None
+        logger.info("UptimeKumaClient инициализирован")
 
     async def connect(self) -> None:
         """Установка соединения с Uptime Kuma"""
         try:
+            logger.info(f"Подключение к Uptime Kuma: {self.url}")
             self.api = UptimeKumaApi(self.url)
-            self.api.login(self.username, self.password)
+            await asyncio.to_thread(self.api.login, self.username, self.password)
+            logger.info("Успешное подключение к Uptime Kuma")
         except Exception as e:
+            logger.error(f"Ошибка подключения к Uptime Kuma: {str(e)}")
+            self.api = None
             raise ConnectionError(f"Ошибка подключения к Uptime Kuma: {str(e)}")
 
     async def disconnect(self) -> None:
         """Закрытие соединения с Uptime Kuma"""
         if self.api:
-            try:
-                # Попробуем вызвать без await, т.к. это не корутина
-                self.api.disconnect()
-            except Exception as e:
-                raise ConnectionError(f"Ошибка при отключении от Uptime Kuma: {str(e)}")
+            api_to_disconnect = self.api
             self.api = None
+            try:
+                logger.info("Отключение от Uptime Kuma")
+                await asyncio.to_thread(api_to_disconnect.disconnect)
+                logger.info("Успешное отключение от Uptime Kuma")
+            except Exception as e:
+                logger.error(f"Ошибка при отключении от Uptime Kuma: {str(e)}")
 
     async def __aenter__(self):
         await self.connect()
@@ -38,31 +49,19 @@ class UptimeKumaClient:
         await self.disconnect()
         
     async def get_monitors(self) -> List[Dict[str, Any]]:
-        """Получение списка мониторов с их статусами
-        
-        Returns:
-            List[Dict[str, Any]]: Список мониторов с полями:
-                - id: ID монитора
-                - name: Имя монитора
-                - status: Статус (1 - активен, 0 - неактивен)
-                - active: Активен ли монитор
-                - url: URL монитора
-                - type: Тип монитора
-                - maintenance: В режиме обслуживания ли монитор
-        """
+        """Получение списка мониторов с их статусами"""
         if not self.api:
-            await self.connect()
+            logger.error("Попытка получить мониторы без активного соединения.")
+            raise ConnectionError("Соединение с Uptime Kuma не установлено.")
             
         try:
-            # Вызываем без await, т.к. это не корутина
-            monitors_data = self.api.get_monitors()
+            logger.info("Получение списка мониторов")
+            monitors_data = await asyncio.to_thread(self.api.get_monitors)
             
-            # Преобразуем в удобный формат
             result = []
             for monitor in monitors_data:
-                # Определяем статус (1 - вверх, 0 - вниз)
                 status = 1
-                if not monitor.get("active", True) or monitor.get("status") == 0:
+                if not monitor.get("active", True) or monitor.get("status", 1) == 0:
                     status = 0
                 if monitor.get("maintenance", False):
                     status = 0
@@ -76,59 +75,49 @@ class UptimeKumaClient:
                     "type": monitor.get("type", "unknown"),
                     "maintenance": monitor.get("maintenance", False)
                 })
-                
+            
+            logger.info(f"Получено {len(result)} мониторов")
             return result
         except Exception as e:
+            logger.error(f"Ошибка при получении списка мониторов: {str(e)}")
             raise ConnectionError(f"Ошибка при получении списка мониторов: {str(e)}")
     
     async def get_monitor_by_id(self, monitor_id: str) -> Optional[Dict[str, Any]]:
-        """Получение информации о конкретном мониторе по его ID
-        
-        Args:
-            monitor_id: ID монитора
-            
-        Returns:
-            Optional[Dict[str, Any]]: Информация о мониторе или None, если монитор не найден
-        """
+        """Получение информации о конкретном мониторе по его ID"""
+        logger.info(f"Поиск монитора по ID: {monitor_id}")
         monitors = await self.get_monitors()
         
         for monitor in monitors:
             if str(monitor.get("id")) == str(monitor_id):
+                logger.info(f"Найден монитор: {monitor.get('name')}")
                 return monitor
-                
+        
+        logger.warning(f"Монитор с ID {monitor_id} не найден")
         return None
     
     async def get_monitor_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        """Получение информации о конкретном мониторе по его имени
-        
-        Args:
-            name: Имя монитора
-            
-        Returns:
-            Optional[Dict[str, Any]]: Информация о мониторе или None, если монитор не найден
-        """
+        """Получение информации о конкретном мониторе по его имени"""
+        logger.info(f"Поиск монитора по имени: {name}")
         monitors = await self.get_monitors()
         
         for monitor in monitors:
             if monitor.get("name") == name:
+                logger.info(f"Найден монитор: {name}")
                 return monitor
-                
+        
+        logger.warning(f"Монитор с именем {name} не найден")
         return None
     
     async def get_incidents(self) -> List[Dict[str, Any]]:
-        """Получение списка инцидентов
-        
-        Returns:
-            List[Dict[str, Any]]: Список инцидентов
-        """
+        """Получение списка инцидентов"""
         if not self.api:
-            await self.connect()
+            logger.error("Попытка получить инциденты без активного соединения.")
+            raise ConnectionError("Соединение с Uptime Kuma не установлено.")
             
         try:
-            # Вызываем без await, т.к. это не корутина
-            incidents_data = self.api.get_incidents()
+            logger.info("Получение списка инцидентов")
+            incidents_data = await asyncio.to_thread(self.api.get_incidents)
             
-            # Преобразуем в удобный формат
             result = []
             for incident in incidents_data:
                 result.append({
@@ -139,23 +128,21 @@ class UptimeKumaClient:
                     "started_at": incident.get("started_at", ""),
                     "resolved_at": incident.get("resolved_at", "")
                 })
-                
+            
+            logger.info(f"Получено {len(result)} инцидентов")
             return result
         except Exception as e:
-            # Если не удалось получить инциденты напрямую, создаем их из мониторов
+            logger.warning(f"Не удалось получить инциденты напрямую: {str(e)}, создаем из мониторов")
             return await self._create_incidents_from_monitors()
     
     async def _create_incidents_from_monitors(self) -> List[Dict[str, Any]]:
-        """Создание списка инцидентов на основе неработающих мониторов
-        
-        Returns:
-            List[Dict[str, Any]]: Список инцидентов
-        """
+        """Создание списка инцидентов на основе неработающих мониторов"""
+        logger.info("Создание инцидентов из неработающих мониторов")
         monitors = await self.get_monitors()
         
         incidents = []
         for monitor in monitors:
-            if monitor.get("status") == 0 and monitor.get("active", True):
+            if monitor.get("status") == 0 and monitor.get("active", True) and not monitor.get("maintenance", False):
                 incidents.append({
                     "id": monitor.get("id"),
                     "title": f"Проблема с {monitor.get('name')}",
@@ -164,20 +151,13 @@ class UptimeKumaClient:
                     "started_at": "Недавно",
                     "resolved_at": ""
                 })
-                
+        
+        logger.info(f"Создано {len(incidents)} инцидентов из мониторов")
         return incidents
     
     async def get_status_summary(self) -> Dict[str, Any]:
-        """Получение сводки о статусе всех мониторов
-        
-        Returns:
-            Dict[str, Any]: Сводка о статусе
-                - total: Общее количество мониторов
-                - up: Количество работающих мониторов
-                - down: Количество неработающих мониторов
-                - maintenance: Количество мониторов на обслуживании
-                - uptime: Процент работающих мониторов
-        """
+        """Получение сводки о статусе всех мониторов"""
+        logger.info("Получение сводки о статусе мониторов")
         monitors = await self.get_monitors()
         
         total = len(monitors)
@@ -185,14 +165,16 @@ class UptimeKumaClient:
         down = sum(1 for m in monitors if m.get("status") == 0 and m.get("active", True) and not m.get("maintenance", False))
         maintenance = sum(1 for m in monitors if m.get("maintenance", False) and m.get("active", True))
         
-        # Расчет процента работающих мониторов
         active_monitors = sum(1 for m in monitors if m.get("active", True))
         uptime = (up / active_monitors * 100) if active_monitors > 0 else 100
         
-        return {
+        summary = {
             "total": total,
             "up": up,
             "down": down,
             "maintenance": maintenance,
             "uptime": round(uptime, 2)
         }
+        
+        logger.info(f"Статус мониторов: всего {total}, работают {up}, не работают {down}, на обслуживании {maintenance}, uptime {uptime}%")
+        return summary
